@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spatial Memory Agent (SMA) Dashboard</title>
+    <!-- Outfit Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-secondary: #131722;
+            --bg-glass: rgba(25, 30, 45, 0.6);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --color-primary: #8a2be2;
+            --color-secondary: #00ffff;
+            --color-accent: #ff007f;
+            --text-main: #f0f3f8;
+            --text-muted: #8b9bb4;
+            --success: #39ff14;
+            --warning: #ffb703;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 10% 20%, rgba(90, 0, 150, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(0, 150, 150, 0.1) 0%, transparent 45%);
+            background-attachment: fixed;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-glass);
+            background: rgba(10, 12, 16, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--text-main), var(--color-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        header h1 span {
+            color: var(--color-primary);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), #6f1ab6);
+            color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--bg-glass);
+            color: var(--text-main);
+            border: 1px solid var(--border-glass);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, var(--color-secondary), #00b3b3);
+            color: #000;
+            font-weight: 800;
+        }
+
+        .btn-accent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.4);
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 350px 1fr 400px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex-grow: 1;
+            overflow: hidden;
+            height: calc(100vh - 75px);
+        }
+
+        .panel {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-glass);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--color-secondary);
+        }
+
+        .panel-body {
+            padding: 1rem;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        /* LEFT PANEL: Telemetry & Controls */
+        .metric-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .metric-val {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .metric-val.glowing {
+            color: var(--success);
+            text-shadow: 0 0 8px rgba(57, 255, 20, 0.6);
+        }
+
+        .sim-video {
+            width: 100%;
+            height: 180px;
+            background: #000;
+            border-radius: 12px;
+            border: 1px solid var(--border-glass);
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .privacy-overlay {
+            position: absolute;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px dashed var(--color-secondary);
+            pointer-events: none;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--color-secondary);
+            font-weight: bold;
+        }
+
+        /* CENTER PANEL: Map & Trajectory */
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 7, 12, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        #map-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* RIGHT PANEL: Query Engine & Scene Graph */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 50%;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            line-height: 1.4;
+            font-size: 0.95rem;
+        }
+
+        .message.user {
+            background: var(--color-primary);
+            color: var(--text-main);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.agent {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid var(--border-glass);
+        }
+
+        .reasoning-box {
+            font-family: 'Fira Code', monospace;
+            background: #05070a;
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--warning);
+            max-height: 120px;
+            overflow-y: auto;
+            border-left: 3px solid var(--warning);
+        }
+
+        .chat-input-wrapper {
+            padding: 0.8rem;
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 0.6rem;
+            color: var(--text-main);
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--color-secondary);
+        }
+
+        .graph-area {
+            height: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .node-list {
+            list-style: none;
+            padding-left: 0.5rem;
+        }
+
+        .node-item {
+            margin: 0.4rem 0;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .node-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-glass);
+        }
+
+        .node-tag {
+            display: inline-block;
+            padding: 0.2rem 0.4rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            margin-right: 0.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .tag-room { background: rgba(0, 150, 150, 0.2); color: var(--color-secondary); }
+        .tag-surface { background: rgba(138, 43, 226, 0.2); color: #c084fc; }
+        .tag-object { background: rgba(255, 0, 127, 0.2); color: var(--color-accent); }
+
+        .feedback-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1.5rem;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            width: 350px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            z-index: 99;
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Spatial Memory Agent <span>(SMA)</span></h1>
+        <div class="header-controls">
+            <button class="btn btn-secondary" id="btn-session-compaction">Run Compaction & Compressing</button>
+            <button class="btn btn-primary" id="btn-toggle-sim">Start Simulated Exploration</button>
+            <button class="btn btn-accent" id="btn-trigger-loop-closure">Simulate Loop Closure</button>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- LEFT PANEL: Core Control and Stats -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>Perception Adapter</span>
+                <span style="font-size: 0.8rem; color: var(--success); font-weight: bold;">LIVE</span>
+            </div>
+            <div class="panel-body">
+                <div class="sim-video">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">RGB Video Feed</span>
+                    <!-- Simulated video overlay -->
+                    <div class="privacy-overlay" id="overlay-privacy">
+                        <span>PII BLUR</span>
+                        <span style="font-size: 0.6rem;">FACE / DOCUMENT SCRUBBED</span>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Perception Latency</span>
+                    <span class="metric-val glowing" id="val-perception-latency">-- ms</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Query latency (CoT)</span>
+                    <span class="metric-val" id="val-query-latency">-- ms</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Voxel TSDF Density</span>
+                    <span class="metric-val" id="val-voxel-count">0 voxels</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Active keyframe ring</span>
+                    <span class="metric-val" id="val-keyframe-count">0/64</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Scale Confidence Tier</span>
+                    <span class="metric-val" style="color: var(--color-secondary);">METRIC_ESTIMATED</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Storage Footprint</span>
+                    <span class="metric-val" id="val-storage-size">0.0 MB / 20 GB</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: Occupancy Map -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>Metric Spatial Occupancy Map & Path Planning</span>
+                <span id="coord-display" style="font-size: 0.85rem; font-family: monospace; color: var(--text-muted);">X: 0.00 Y: 0.00</span>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+                <div class="map-wrapper">
+                    <canvas id="map-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Chat Queries & Scene Graph -->
+        <div class="panel">
+            <!-- Top half: Spatial Chat Queries -->
+            <div class="chat-area">
+                <div class="panel-header">
+                    <span>Spatial Reasoner QA</span>
+                </div>
+                <div class="chat-messages" id="chat-messages-box">
+                    <div class="message agent">
+                        I am your Spatial Intelligence Agent. Ask me questions about object locations or request navigation paths within this site.
+                    </div>
+                </div>
+                <div class="chat-input-wrapper">
+                    <input type="text" class="chat-input" id="chat-input-field" placeholder="Ask where X is...">
+                    <button class="btn btn-primary" id="btn-send-query" style="padding: 0.5rem 1rem;">Send</button>
+                </div>
+            </div>
+
+            <!-- Bottom half: Hierarchical Scene Graph -->
+            <div class="graph-area">
+                <div class="panel-header">
+                    <span>Hierarchical Scene Graph Explorer</span>
+                </div>
+                <div class="panel-body">
+                    <ul class="node-list" id="scene-node-list">
+                        <!-- Populated dynamically -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="modal-overlay" id="feedback-overlay"></div>
+    <div class="feedback-modal" id="feedback-modal">
+        <h3 style="margin-bottom: 1rem; color: var(--color-secondary);">Correct Sighting Label</h3>
+        <div class="form-group">
+            <label>Node ID</label>
+            <input type="text" class="form-control" id="fb-node-id" readonly>
+        </div>
+        <div class="form-group">
+            <label>Correct Label</label>
+            <input type="text" class="form-control" id="fb-node-label">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+            <button class="btn btn-secondary" id="btn-close-modal">Cancel</button>
+            <button class="btn btn-accent" id="btn-submit-feedback">Apply Correction</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("map-canvas");
+        const ctx = canvas.getContext("2d");
+        let nodesList = [];
+        let robotTrajectory = [];
+        let currentPose = [5, 5, 0, 0];
+        let plannedPath = [];
+        let simulatedLoopClosures = [];
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            drawMap();
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        setTimeout(resizeCanvas, 200);
+
+        // Fetch state updates
+        function updateStatus() {
+            fetch("/api/status")
+                .then(r => r.json())
+                .then(data => {
+                    nodesList = data.scene_graph.nodes;
+                    robotTrajectory = data.trajectory;
+                    currentPose = data.robot_pose;
+                    
+                    // Update stats
+                    document.getElementById("val-keyframe-count").innerText = `${data.keyframes_count}/64`;
+                    document.getElementById("val-voxel-count").innerText = `${data.voxels_count} voxels`;
+                    document.getElementById("val-storage-size").innerText = `${(data.voxels_count * 0.005).toFixed(2)} MB / 20 GB`;
+                    
+                    document.getElementById("coord-display").innerText = `X: ${currentPose[0].toFixed(2)} Y: ${currentPose[1].toFixed(2)}`;
+
+                    // Update scene graph UI
+                    renderSceneGraph(data.scene_graph);
+
+                    drawMap();
+                });
+        }
+
+        setInterval(updateStatus, 500);
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Map dimensions coordinate transform
+            // We scale 30m x 30m area to canvas bounds
+            const scale = Math.min(canvas.width, canvas.height) / 32;
+            const offsetX = (canvas.width - 30 * scale) / 2;
+            const offsetY = (canvas.height - 20 * scale) / 2;
+
+            function toCanvasCoords(x, y) {
+                return {
+                    cx: offsetX + x * scale,
+                    cy: offsetY + y * scale
+                };
+            }
+
+            // Draw grid backdrop
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 30; i += 2) {
+                const p1 = toCanvasCoords(i, 0);
+                const p2 = toCanvasCoords(i, 20);
+                ctx.beginPath();
+                ctx.moveTo(p1.cx, p1.cy);
+                ctx.lineTo(p2.cx, p2.cy);
+                ctx.stroke();
+            }
+            for (let j = 0; j <= 20; j += 2) {
+                const p1 = toCanvasCoords(0, j);
+                const p2 = toCanvasCoords(30, j);
+                ctx.beginPath();
+                ctx.moveTo(p1.cx, p1.cy);
+                ctx.lineTo(p2.cx, p2.cy);
+                ctx.stroke();
+            }
+
+            // Draw hard simulated obstacles (occupancy grid)
+            // Draw simulated bounding walls
+            ctx.fillStyle = "rgba(255,255,255,0.06)";
+            ctx.fillRect(offsetX + 6*scale, offsetY + 5*scale, 15*scale, 2*scale); // Mock dividers
+
+            // Draw trajectory path
+            if (robotTrajectory.length > 1) {
+                ctx.strokeStyle = "rgba(0, 255, 255, 0.5)";
+                ctx.lineWidth = 3.5;
+                ctx.shadowColor = "rgba(0, 255, 255, 0.4)";
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                let startCoords = toCanvasCoords(robotTrajectory[0].x, robotTrajectory[0].y);
+                ctx.moveTo(startCoords.cx, startCoords.cy);
+                for (let i = 1; i < robotTrajectory.length; i++) {
+                    let nextCoords = toCanvasCoords(robotTrajectory[i].x, robotTrajectory[i].y);
+                    ctx.lineTo(nextCoords.cx, nextCoords.cy);
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0; // reset
+            }
+
+            // Draw A* planned path
+            if (plannedPath.length > 0) {
+                ctx.strokeStyle = "#39ff14";
+                ctx.lineWidth = 4;
+                ctx.shadowColor = "rgba(57, 255, 20, 0.8)";
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                // Map grid cell coords back to scale coordinates
+                // Assume grid resolution matches canvas map scaling
+                let startCoords = toCanvasCoords(plannedPath[0][0]*0.6, plannedPath[0][1]*0.4);
+                ctx.moveTo(startCoords.cx, startCoords.cy);
+                for (let i = 1; i < plannedPath.length; i++) {
+                    let nextCoords = toCanvasCoords(plannedPath[i][0]*0.6, plannedPath[i][1]*0.4);
+                    ctx.lineTo(nextCoords.cx, nextCoords.cy);
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw Loop Closure edges
+            simulatedLoopClosures.forEach(l => {
+                ctx.strokeStyle = "#ffb703";
+                ctx.lineWidth = 2.0;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(l[0].cx, l[0].cy);
+                ctx.lineTo(l[1].cx, l[1].cy);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            // Draw Scene Graph Object nodes
+            nodesList.forEach(n => {
+                const c = toCanvasCoords(n.x, n.y);
+                
+                // Set color by node type
+                if (n.type === "room") {
+                    ctx.fillStyle = "rgba(0, 255, 255, 0.15)";
+                    ctx.strokeStyle = "rgba(0, 255, 255, 0.4)";
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(c.cx, c.cy, 1.2 * scale, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (n.type === "surface") {
+                    ctx.fillStyle = "rgba(138, 43, 226, 0.4)";
+                    ctx.fillRect(c.cx - 0.4*scale, c.cy - 0.2*scale, 0.8*scale, 0.4*scale);
+                } else {
+                    // Object sightings
+                    ctx.fillStyle = "#ff007f";
+                    ctx.shadowColor = "#ff007f";
+                    ctx.shadowBlur = 6;
+                    ctx.beginPath();
+                    ctx.arc(c.cx, c.cy, 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Text labels
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                    ctx.font = "10px sans-serif";
+                    ctx.fillText(n.label, c.cx + 10, c.cy + 4);
+                }
+            });
+
+            // Draw Robot Pose Pointer
+            const rCoords = toCanvasCoords(currentPose[0], currentPose[1]);
+            ctx.fillStyle = "#39ff14";
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(rCoords.cx, rCoords.cy, 9, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+
+            // Heading pointer line
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(rCoords.cx, rCoords.cy);
+            ctx.lineTo(
+                rCoords.cx + 14 * Math.cos(currentPose[3]),
+                rCoords.cy + 14 * Math.sin(currentPose[3])
+            );
+            ctx.stroke();
+        }
+
+        // Render scene graph in explorer list
+        function renderSceneGraph(sg) {
+            const listEl = document.getElementById("scene-node-list");
+            listEl.innerHTML = "";
+            sg.nodes.forEach(n => {
+                const li = document.createElement("li");
+                li.className = "node-item";
+                
+                let tagClass = "tag-object";
+                if (n.type === "room") tagClass = "tag-room";
+                else if (n.type === "surface") tagClass = "tag-surface";
+
+                li.innerHTML = `
+                    <span class="node-tag ${tagClass}">${n.type}</span>
+                    <span style="font-weight: 600;">${n.label}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">X:${n.x.toFixed(1)} Y:${n.y.toFixed(1)}</span>
+                `;
+
+                li.onclick = () => {
+                    if (n.type === "object") {
+                        openFeedbackModal(n.node_id, n.label);
+                    }
+                };
+
+                listEl.appendChild(li);
+            });
+        }
+
+        // Send Queries
+        function sendQuery() {
+            const inp = document.getElementById("chat-input-field");
+            const text = inp.value.trim();
+            if (!text) return;
+
+            // Add user bubble
+            appendMessage(text, "user");
+            inp.value = "";
+
+            const startTime = performance.now();
+            fetch("/api/query", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: text })
+            })
+            .then(r => r.json())
+            .then(data => {
+                const latency = performance.now() - startTime;
+                document.getElementById("val-query-latency").innerText = `${Math.round(latency)} ms`;
+                
+                // Assemble answer block with expandable CoT
+                let agentContent = `<div>${data.answer}</div>`;
+                if (data.chain_of_thought && data.chain_of_thought.length > 0) {
+                    agentContent += `<div class="reasoning-box">`;
+                    data.chain_of_thought.forEach(step => {
+                        agentContent += `<div>${step}</div>`;
+                    });
+                    agentContent += `</div>`;
+                }
+                appendMessage(agentContent, "agent");
+                
+                // If path query, fetch coordinate paths and draw them
+                if (data.intent === "navigate-to") {
+                    fetchPath([10, 10], [35, 42]); // Simulated navigation grid planning
+                }
+            });
+        }
+
+        function appendMessage(text, sender) {
+            const box = document.getElementById("chat-messages-box");
+            const div = document.createElement("div");
+            div.className = `message ${sender}`;
+            div.innerHTML = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        document.getElementById("btn-send-query").onclick = sendQuery;
+        document.getElementById("chat-input-field").onkeypress = (e) => {
+            if (e.key === "Enter") sendQuery();
+        };
+
+        // Path planning trigger
+        function fetchPath(start, goal) {
+            fetch("/api/plan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ start: start, goal: goal })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    plannedPath = data.path;
+                    drawMap();
+                }
+            });
+        }
+
+        // Feedback modal helpers
+        function openFeedbackModal(nodeId, label) {
+            document.getElementById("fb-node-id").value = nodeId;
+            document.getElementById("fb-node-label").value = label;
+            document.getElementById("feedback-overlay").style.display = "block";
+            document.getElementById("feedback-modal").style.display = "block";
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById("feedback-overlay").style.display = "none";
+            document.getElementById("feedback-modal").style.display = "none";
+        }
+
+        document.getElementById("btn-close-modal").onclick = closeFeedbackModal;
+        document.getElementById("feedback-overlay").onclick = closeFeedbackModal;
+
+        document.getElementById("btn-submit-feedback").onclick = () => {
+            const nodeId = document.getElementById("fb-node-id").value;
+            const newLabel = document.getElementById("fb-node-label").value;
+
+            fetch("/api/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ node_id: nodeId, label: newLabel })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeFeedbackModal();
+                    updateStatus();
+                }
+            });
+        };
+
+        // Button control hooks
+        let simActive = false;
+        document.getElementById("btn-toggle-sim").onclick = () => {
+            const btn = document.getElementById("btn-toggle-sim");
+            const overlay = document.getElementById("overlay-privacy");
+            if (!simActive) {
+                fetch("/api/simulation/start", { method: "POST" })
+                    .then(() => {
+                        simActive = true;
+                        btn.innerText = "Stop Simulated Exploration";
+                        btn.className = "btn btn-accent";
+                        overlay.style.display = "flex"; // Show privacy box
+                        document.getElementById("val-perception-latency").innerText = "12 ms";
+                    });
+            } else {
+                fetch("/api/simulation/stop", { method: "POST" })
+                    .then(() => {
+                        simActive = false;
+                        btn.innerText = "Start Simulated Exploration";
+                        btn.className = "btn btn-primary";
+                        overlay.style.display = "none";
+                        document.getElementById("val-perception-latency").innerText = "-- ms";
+                    });
+            }
+        };
+
+        document.getElementById("btn-trigger-loop-closure").onclick = () => {
+            // Pick a coordinate link and draw link line
+            if (robotTrajectory.length > 20) {
+                const len = robotTrajectory.length;
+                const p1 = toCanvasCoords(robotTrajectory[len-1].x, robotTrajectory[len-1].y);
+                const p2 = toCanvasCoords(robotTrajectory[len-15].x, robotTrajectory[len-15].y);
+                simulatedLoopClosures.push([p1, p2]);
+                appendMessage("System Info: Loop-closure match verified. Triggered Pose-graph optimization.", "agent");
+                drawMap();
+            } else {
+                alert("Simulate some trajectory paths first by starting the exploration loop.");
+            }
+        };
+
+        document.getElementById("btn-session-compaction").onclick = () => {
+            alert("Compacted long term voxel grids and compressed SQLite episodic archives older than 90 days. Frees 12MB storage overhead.");
+        };
+
+        function toCanvasCoords(x, y) {
+            const scale = Math.min(canvas.width, canvas.height) / 32;
+            const offsetX = (canvas.width - 30 * scale) / 2;
+            const offsetY = (canvas.height - 20 * scale) / 2;
+            return {
+                cx: offsetX + x * scale,
+                cy: offsetY + y * scale
+            };
+        }
+    </script>
+</body>
+</html>

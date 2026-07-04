@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - SITE_ID=site_office_01
+      - OFFLINE_MODE=true
+      - STORAGE_BUDGET_GB=20
+      - PRIVACY_MODE=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
