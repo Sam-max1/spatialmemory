@@ -1,0 +1,25 @@
+# SMA Git Exclusion Rules
+
+# Restored design and plan documents (local-only)
+SPATIAL_MEMORY_AGENT_ARCHITECTURE_DESIGN.md
+SPATIAL_MEMORY_AGENT_IMPLEMENTATION_PLAN.md
+ITERATION_LOG.md
+
+# Local Databases and Logs
+data/
+logs/
+*.db
+*.bin
+
+# Python Environment and Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
